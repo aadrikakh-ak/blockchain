@@ -5,3 +5,6 @@ db.json
 deployment.json
 pdfs/
 docs/
+*.log
+.cache/
+

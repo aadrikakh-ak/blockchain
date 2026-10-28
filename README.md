@@ -8,7 +8,13 @@ University certificates are issued as PDFs. Only the SHA-256 hash, certificate I
 
 Modules: University admin, Student, Document verification, Smart contract (`contracts/DocRegistry.sol`), Employer, Audit (contract events).
 
-## Run
+## Quick Start (One-Click)
+
+On Windows, simply double-click:
+- **`start.bat`**: Automatically checks dependencies, boots the local blockchain node, deploys the smart contract, launches the server, and opens http://localhost:3000 in your browser.
+- **`stop.bat`**: Shuts down any running services on ports 8545 and 3000.
+
+## Manual Run
 
     npm install
     npx hardhat node                 # terminal 1: local chain
