@@ -1,0 +1,7 @@
+node_modules/
+artifacts/
+cache/
+db.json
+deployment.json
+pdfs/
+docs/

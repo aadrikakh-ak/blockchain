@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Certificate Registry</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,600&display=swap" rel="stylesheet">
+<style>
+/* Layout: registrar's desk. Slim header with role tabs, one working panel at a time,
+   results shown as a verdict card with a stamp, hashes and IDs in mono. */
+:root{
+  --bg:#eef1f5; --surface:#ffffff; --fg:#14213d; --muted:#5b6678; --line:#d5dbe5;
+  --accent:#1d3a8a; --accent-fg:#ffffff; --gold:#b3a245; --cube:#1d3a8a; --wave1:#d6e0f5; --wave2:#b9c9ee; --wave3:#9db3e6; --cloud:#ffffff; --cloud-shade:#d3ddf0;
+  --ok:#17693f; --ok-bg:#e1f3e8; --bad:#a3262a; --bad-bg:#fae3e3; --warn:#8a5a00; --warn-bg:#fbefd2;
+  --display:"Source Serif 4",Georgia,serif; --body:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0d1424; --surface:#151e33; --fg:#e6ebf5; --muted:#93a0b8; --line:#273352;
+  --accent:#8fb0ff; --accent-fg:#0d1424; --cube:#3a5fc8; --wave1:#16213c; --wave2:#1b2a4d; --wave3:#223566; --cloud:#27355c; --cloud-shade:#1c2845;
+  --ok:#6ed39b; --ok-bg:#12301f; --bad:#ff8b8e; --bad-bg:#3a1618; --warn:#f0c46a; --warn-bg:#35280a;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0d1424; --surface:#151e33; --fg:#e6ebf5; --muted:#93a0b8; --line:#273352;
+  --accent:#8fb0ff; --accent-fg:#0d1424; --cube:#3a5fc8; --wave1:#16213c; --wave2:#1b2a4d; --wave3:#223566; --cloud:#27355c; --cloud-shade:#1c2845;
+  --ok:#6ed39b; --ok-bg:#12301f; --bad:#ff8b8e; --bad-bg:#3a1618; --warn:#f0c46a; --warn-bg:#35280a;
+  color-scheme:dark}
+
+*{box-sizing:border-box}
+
+#sky{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:0}
+/* animated sea: three wave layers scroll at different speeds */
+.wrap{position:relative;z-index:1;padding-bottom:140px}
+.sea{position:fixed;left:0;right:0;bottom:0;height:130px;overflow:hidden;pointer-events:none;z-index:0}
+.sea svg.wave{position:absolute;left:0;bottom:0;width:200%;height:100%;animation:drift 18s linear infinite}
+.sea .w1{fill:var(--wave1);height:130px}
+.sea .w2{fill:var(--wave2);height:101px;animation-duration:12s}
+.sea .w3{fill:var(--wave3);height:68px;animation-duration:8s;animation-direction:reverse}
+@keyframes drift{to{transform:translateX(-50%)}}
+@media(max-width:600px){.sea{height:100px}.sea .w1{height:100px}.sea .w2{height:78px}.sea .w3{height:52px}.wrap{padding-bottom:110px}}
+@media(prefers-reduced-motion:reduce){.sea svg.wave{animation:none}}
+/* 3D block chain in the header: pure CSS transforms, no library */
+.chain{display:flex;gap:26px;perspective:700px;margin:0 auto 0 28px;padding:6px 0}
+.cube{--s:30px;width:var(--s);height:var(--s);position:relative;transform-style:preserve-3d;transform:rotateX(-24deg) rotateY(35deg);animation:spin 12s linear infinite;animation-delay:calc(var(--i) * -2s)}
+.cube i{position:absolute;inset:0;display:grid;place-items:center;font:600 10px var(--mono);color:#fff;background:var(--cube);border:1px solid var(--gold)}
+.cube i:nth-child(1){transform:translateZ(calc(var(--s) / 2))}
+.cube i:nth-child(2){transform:rotateY(90deg) translateZ(calc(var(--s) / 2));filter:brightness(.85)}
+.cube i:nth-child(3){transform:rotateY(180deg) translateZ(calc(var(--s) / 2));filter:brightness(.7)}
+.cube i:nth-child(4){transform:rotateY(-90deg) translateZ(calc(var(--s) / 2));filter:brightness(.85)}
+.cube i:nth-child(5){transform:rotateX(90deg) translateZ(calc(var(--s) / 2));filter:brightness(1.25)}
+.cube i:nth-child(6){transform:rotateX(-90deg) translateZ(calc(var(--s) / 2));filter:brightness(.6)}
+.cube:nth-child(even){--s:24px}
+@keyframes spin{to{transform:rotateX(-24deg) rotateY(395deg)}}
+@media(max-width:600px){.chain{display:none}}
+@media(prefers-reduced-motion:reduce){.cube{animation:none}}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 var(--body)}
+.wrap{max-width:820px;margin:0 auto;padding:20px 16px 48px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:20px}
+.brand{display:flex;align-items:baseline;gap:10px;min-width:0}
+h1{font:600 26px/1.1 var(--display);margin:0;letter-spacing:-.01em}
+.net{font:500 11px var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+#theme{background:none;border:1px solid var(--line);color:var(--muted);border-radius:6px;padding:4px 10px;font:inherit;font-size:13px;cursor:pointer}
+
+nav{display:flex;gap:2px;border-bottom:1px solid var(--line);margin-bottom:20px;overflow-x:auto}
+nav button{background:none;border:0;border-bottom:2px solid transparent;padding:10px 16px;font:500 14px var(--body);color:var(--muted);cursor:pointer;white-space:nowrap}
+nav button[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--accent)}
+nav button:hover{color:var(--fg)}
+
+section{display:none}section.on{display:block}
+.lede{color:var(--muted);margin:0 0 18px;max-width:60ch}
+.grid{display:grid;gap:16px}
+@media(min-width:720px){.grid.two{grid-template-columns:1fr 1fr}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:18px;min-width:0}
+.card h2{font:600 17px var(--display);margin:0 0 12px}
+label{display:block;font:500 12px var(--body);color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:12px 0 4px}
+label:first-of-type{margin-top:0}
+input[type=text],input[type=password]{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg);font:inherit}
+input::placeholder{color:var(--muted);opacity:.7}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn{margin-top:14px;background:var(--accent);color:var(--accent-fg);border:0;border-radius:6px;padding:9px 16px;font:600 14px var(--body);cursor:pointer}
+.btn:hover{filter:brightness(1.08)}
+.btn.ghost{background:none;color:var(--accent);border:1px solid var(--line)}
+.btn.danger{background:var(--bad);color:var(--surface)}
+.keyrow{display:flex;gap:10px;align-items:end;margin-bottom:16px;max-width:320px}
+.mono{font-family:var(--mono);font-size:12.5px;word-break:break-all}
+
+/* drop zone */
+.drop{border:1.5px dashed var(--line);border-radius:8px;padding:28px 16px;text-align:center;color:var(--muted);cursor:pointer;background:var(--bg)}
+.drop.over,.drop:hover{border-color:var(--accent);color:var(--fg)}
+.drop strong{display:block;color:var(--fg);font-weight:600}
+.or{text-align:center;color:var(--muted);font-size:13px;margin:16px 0 0}
+
+/* verdict */
+#verdict{margin-top:16px}
+.verdict{border-radius:8px;padding:18px;display:flex;gap:16px;align-items:center;border:1px solid}
+.verdict .stamp{flex:none;border:2px solid currentColor;border-radius:6px;padding:6px 10px;font:600 13px var(--mono);letter-spacing:.1em;transform:rotate(-4deg)}
+.verdict p{margin:2px 0 0;font-size:14px}
+.verdict h3{margin:0;font:600 18px var(--display)}
+.v-ok{background:var(--ok-bg);color:var(--ok);border-color:var(--ok)}
+.v-bad{background:var(--bad-bg);color:var(--bad);border-color:var(--bad)}
+.v-warn{background:var(--warn-bg);color:var(--warn);border-color:var(--warn)}
+.verdict dl{margin:8px 0 0;display:grid;grid-template-columns:auto 1fr;gap:2px 12px;font-size:13px;color:var(--fg)}
+.verdict dt{color:var(--muted)}.verdict dd{margin:0;min-width:0;word-break:break-all}
+
+/* lists */
+.row{display:flex;gap:12px;justify-content:space-between;align-items:center;flex-wrap:wrap;padding:12px 0;border-top:1px solid var(--line)}
+.row:first-child{border-top:0}
+.row .t{font-weight:600}.row small{display:block;color:var(--muted)}
+.pill{font:600 11px var(--mono);letter-spacing:.06em;padding:2px 8px;border-radius:99px}
+.pill.ok{background:var(--ok-bg);color:var(--ok)}.pill.bad{background:var(--bad-bg);color:var(--bad)}
+a.dl{color:var(--accent);font-weight:600;text-decoration:none}a.dl:hover{text-decoration:underline}
+.table{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;font:500 11px var(--body);text-transform:uppercase;letter-spacing:.07em;color:var(--muted);padding:6px 10px;border-bottom:1px solid var(--line)}
+td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+.msg{margin-top:12px;font-size:13.5px;min-height:1.4em}
+.msg.err{color:var(--bad)}.msg.good{color:var(--ok)}
+.copy{background:none;border:1px solid var(--line);color:var(--muted);border-radius:4px;font:inherit;font-size:12px;padding:1px 8px;cursor:pointer;margin-left:6px}
+.steps{list-style:none;margin:16px 0 0;padding:0;display:grid;gap:10px}
+.step{border:1px solid var(--line);border-radius:8px;padding:12px 14px;background:var(--bg)}
+.step .head{display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap}
+.step b{font-family:var(--display);font-size:16px}
+.step p{margin:4px 0 0;color:var(--muted);font-size:14px}
+.step .mono{margin-top:6px;color:var(--muted)}
+.pill.info{background:var(--line);color:var(--muted)}
+@media(prefers-reduced-motion:no-preference){.step{animation:in .3s ease-out}.verdict{animation:in .25s ease-out}@keyframes in{from{opacity:0;transform:translateY(4px)}}}
+</style>
+</head>
+<body>
+<canvas id="sky" aria-hidden="true"></canvas>
+<div class="sea" aria-hidden="true">
+  <svg class="wave w1" viewBox="0 0 2400 120" preserveAspectRatio="none"><path d="M0 40 Q150 0 300 40 T600 40 T900 40 T1200 40 T1500 40 T1800 40 T2100 40 T2400 40 V120 H0 Z"/></svg>
+  <svg class="wave w2" viewBox="0 0 2400 120" preserveAspectRatio="none"><path d="M0 40 Q150 0 300 40 T600 40 T900 40 T1200 40 T1500 40 T1800 40 T2100 40 T2400 40 V120 H0 Z"/></svg>
+  <svg class="wave w3" viewBox="0 0 2400 120" preserveAspectRatio="none"><path d="M0 40 Q150 0 300 40 T600 40 T900 40 T1200 40 T1500 40 T1800 40 T2100 40 T2400 40 V120 H0 Z"/></svg>
+</div>
+<div class="wrap">
+  <header>
+    <div class="brand"><h1>Certificate Registry</h1><span class="net">Hardhat · local chain</span></div>
+    <div class="chain" aria-hidden="true" id="chain"></div>
+    <button id="theme" type="button">Theme</button>
+  </header>
+
+  <nav role="tablist" id="nav"></nav>
+
+  <section id="demo">
+    <p class="lede">A guided run of the whole workflow on the live chain: issue a certificate, verify it, tamper with it, revoke it. Each step is a real contract call.</p>
+    <div class="card">
+      <button class="btn" id="demobtn" type="button" style="margin-top:0">Run demo scenario</button>
+      <ol class="steps" id="steps"></ol>
+      <div class="msg" id="demomsg"></div>
+    </div>
+  </section>
+
+  <section id="employer">
+    <p class="lede">Check a degree certificate or marksheet. The registry compares the document's fingerprint with the one the university recorded. No student details are shown.</p>
+    <div class="card">
+      <h2>Upload the document</h2>
+      <div class="drop" id="drop" tabindex="0"><strong>Drop a PDF here or click to choose</strong><span id="fname">Only the fingerprint is checked. The file is not stored.</span></div>
+      <input id="file" type="file" accept=".pdf,application/pdf" hidden>
+      <p class="or">or enter a certificate ID</p>
+      <label for="vid">Certificate ID</label>
+      <input id="vid" type="text" placeholder="0x…" autocomplete="off">
+      <button class="btn" id="vbtn" type="button">Verify</button>
+      <div id="verdict" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <section id="student">
+    <p class="lede">Sign in with your student ID and PIN to see and download your certificates.</p>
+    <div class="grid two">
+      <div class="card">
+        <h2>Sign in</h2>
+        <label for="stid">Student ID</label><input id="stid" type="text" autocomplete="username">
+        <label for="stpin">PIN</label><input id="stpin" type="password" autocomplete="current-password">
+        <button class="btn" id="mine" type="button">Show my certificates</button>
+        <div class="msg" id="stmsg"></div>
+      </div>
+      <div class="card"><h2>My certificates</h2><div id="list"><span class="mono" style="color:var(--muted)">Sign in to see your certificates.</span></div></div>
+    </div>
+  </section>
+
+  <section id="admin">
+    <p class="lede">University office. Register students, issue certificates and revoke ones that are no longer valid.</p>
+    <div class="keyrow"><div style="flex:1"><label for="key">Admin key</label><input id="key" type="password" placeholder="admin" autocomplete="off"></div></div>
+    <div class="grid two">
+      <div class="card">
+        <h2>Register a student</h2>
+        <label for="sid">Student ID</label><input id="sid" type="text" placeholder="S1001">
+        <label for="sname">Full name</label><input id="sname" type="text" placeholder="Asha Verma">
+        <label for="spin">PIN</label><input id="spin" type="text" placeholder="4+ digits">
+        <button class="btn" id="reg" type="button">Register</button>
+        <div class="msg" id="regmsg"></div>
+      </div>
+      <div class="card">
+        <h2>Issue a certificate</h2>
+        <label for="isid">Student ID</label><input id="isid" type="text" placeholder="S1001">
+        <label for="ititle">Title</label><input id="ititle" type="text" placeholder="B.Sc. Computer Science">
+        <label for="ifile">Your own PDF (optional)</label><input id="ifile" type="file" accept=".pdf,application/pdf">
+        <small style="color:var(--muted)">Leave empty and the system generates a certificate for you.</small>
+        <button class="btn" id="iss" type="button">Issue and record on chain</button>
+        <div class="msg" id="issmsg"></div>
+      </div>
+      <div class="card">
+        <h2>Revoke a certificate</h2>
+        <label for="rid">Certificate ID</label><input id="rid" type="text" placeholder="0x…">
+        <button class="btn danger" id="rev" type="button">Revoke</button>
+        <div class="msg" id="revmsg"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="audit">
+    <p class="lede">Every issuance and revocation, read straight from the contract's event log.</p>
+    <div class="card">
+      <div class="table"><table><thead><tr><th>Event</th><th>Certificate</th><th>Block</th><th>Time</th></tr></thead><tbody id="aud"></tbody></table></div>
+      <button class="btn ghost" id="audbtn" type="button">Refresh</button>
+      <div class="msg" id="audmsg"></div>
+    </div>
+  </section>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); e.append(...kids); return e; };
+const J = (url, body, headers = {}) => fetch(url, { method: body ? "POST" : "GET", headers: { "content-type": "application/json", ...headers }, body: body && JSON.stringify(body) }).then((r) => r.json());
+const adminH = () => ({ "x-admin-key": $("key").value || "admin" });
+const say = (id, text, cls = "") => { const m = $(id); m.textContent = text; m.className = "msg " + cls; };
+const fmt = (t) => new Date(t * 1000).toLocaleString();
+const short = (h) => h.slice(0, 10) + "…" + h.slice(-6);
+const copyBtn = (text) => el("button", { className: "copy", type: "button", textContent: "Copy", onclick: (e) => { navigator.clipboard?.writeText(text).then(() => (e.target.textContent = "Copied"), () => {}); } });
+
+
+// header chain: five rotating cubes labelled with block numbers
+$("chain").innerHTML = [1, 2, 3, 4, 5].map((n) => `<div class="cube" style="--i:${n}">${`<i>#${n}</i>`.repeat(6)}</div>`).join("");
+
+
+// biplanes: fly across the screen end to end, stunting on the way (loops, rolls, waves), smoke trail behind.
+// Touch or mouse: tap and the nearest plane performs a stunt; hold and drag and the planes come to your finger's height.
+(() => {
+  const cv = $("sky"), ctx = cv.getContext("2d");
+  const still = matchMedia("(prefers-reduced-motion:reduce)").matches;
+  let W = 0, H = 0;
+  const size = () => { const d = Math.min(devicePixelRatio || 1, 2); W = innerWidth; H = innerHeight; cv.width = W * d; cv.height = H * d; ctx.setTransform(d, 0, 0, d, 0, 0); };
+  size(); addEventListener("resize", () => { size(); draw(); });
+  const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  let col = {}; const readCols = () => (col = { smoke: [css("--accent"), css("--gold"), css("--fg")], cloud: css("--cloud"), shade: css("--cloud-shade") });
+  readCols();
+
+  const TAU = Math.PI * 2, TRAIL = 90;
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const speed = () => clamp(W / 8.5, 110, 220);          // about 8 seconds to cross the screen
+  const radius = () => clamp(Math.min(W, H) * 0.09, 48, 90); // loop radius
+  const scale = () => clamp(W / 1400, 0.85, 1.2) * 1.3;
+
+
+  // clouds: drift slowly left to right; bigger ones move a little faster, so they feel nearer
+  const mkCloud = (i) => {
+    const s = 0.6 + Math.random() * 0.9, n = 5 + Math.floor(Math.random() * 3);
+    const puffs = Array.from({ length: n }, (_, j) => ({ x: j * 30 * s, r: (15 + 15 * Math.sin((Math.PI * (j + 0.5)) / n) + Math.random() * 6) * s }));
+    return { puffs, w: (n - 1) * 30 * s + 40 * s, x: Math.random() * (W + 300) - 150, y: H * (0.06 + Math.random() * 0.42), v: 7 + s * 9 + Math.random() * 4, a: 0.7 + Math.random() * 0.3 };
+  };
+  const clouds = Array.from({ length: 7 }, (_, i) => mkCloud(i));
+  function drawCloud(c) {
+    ctx.globalAlpha = c.a;
+    for (const [dy, fill] of [[5, col.shade], [0, col.cloud]]) {
+      ctx.fillStyle = fill; ctx.beginPath();
+      for (const p of c.puffs) { ctx.moveTo(c.x + p.x + p.r, c.y + dy - p.r * 0.55); ctx.arc(c.x + p.x, c.y + dy - p.r * 0.55, p.r, 0, TAU); }
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  const launch = (p, t) => {
+    p.dir = Math.random() < 0.5 ? 1 : -1;
+    p.x = p.dir > 0 ? -90 : W + 90;
+    p.y = p.yBase = H * (0.2 + Math.random() * 0.3);
+    p.phi = 0; p.man = null; p.trail = []; p.next = t + 1.5 + Math.random() * 1.5;
+  };
+  const make = (x, dir, t, i) => ({ x, dir, y: 0, yBase: 0, phi: 0, psi: 0, roll: 0, prop: 0, tick: 0, ph: Math.random() * TAU, man: null, wait: 0, trail: [], next: t + 1.5 + i, tone: i % 3 });
+  const planes = [0, 1, 2].map((i) => { const p = make(W * [0.15, 0.7, 0.4][i], i === 1 ? -1 : 1, 0, i); p.y = p.yBase = H * [0.25, 0.4, 0.55][i] * 0.8 + 40; return p; });
+
+  let press = null;
+  const interactive = (el) => el && el.closest && el.closest("button,a,input,select,textarea,label,summary,[role=tab]");
+  const stunt = (p, force) => {
+    if (p.man) return;
+    const R = radius(), room = p.y - 2 * R > 30, r = Math.random();
+    p.man = force === "loop" || (room && r < 0.5) ? { type: "loop", ang: 0, R } : r < 0.8 ? { type: "roll", ang: 0 } : { type: "wave", ang: 0 };
+  };
+  addEventListener("pointerdown", (e) => {
+    if (interactive(e.target)) return;
+    press = { x: e.clientX, y: e.clientY };
+    let best = null, bd = 1e9;
+    planes.forEach((p) => { if (p.wait <= 0 && p.x > 0 && p.x < W) { const d = Math.hypot(p.x - e.clientX, p.y - e.clientY); if (d < bd) { bd = d; best = p; } } });
+    if (best) stunt(best);
+  });
+  addEventListener("pointermove", (e) => { if (press) press = { x: e.clientX, y: e.clientY }; });
+  const up = () => { press = null; };
+  addEventListener("pointerup", up); addEventListener("pointercancel", up);
+
+  function step(p, dt, t) {
+    if (p.wait > 0) { p.wait -= dt; if (p.wait <= 0) launch(p, t); return; }
+    const v = speed(), yT = press ? clamp(press.y, 70, H - 170) : p.yBase;
+    let phi = p.phi, roll = 0;
+    const m = p.man;
+    if (m) {
+      if (m.type === "loop") { m.ang += (v / m.R) * dt; phi = m.ang; if (m.ang >= TAU) { p.man = null; phi = 0; } }
+      else if (m.type === "roll") { m.ang += dt * 4.2; roll = m.ang; phi = 0.1 * Math.sin(m.ang); if (m.ang >= TAU) { p.man = null; roll = 0; phi = 0; } }
+      else { m.ang += dt * 2.2; phi = 0.75 * Math.sin(m.ang); if (m.ang >= TAU) { p.man = null; phi = 0; } }
+    } else {
+      const want = clamp((p.y - yT) * 0.006, -0.55, 0.55) + 0.05 * Math.sin(t * 1.7 + p.ph);
+      phi += (want - phi) * Math.min(1, dt * 3);
+      if (t > p.next && p.x > W * 0.12 && p.x < W * 0.88) { stunt(p); p.next = t + 2 + Math.random() * 2.5; }
+    }
+    p.phi = phi; p.roll = roll;
+    p.psi = (p.dir > 0 ? 0 : Math.PI) - p.dir * phi;
+    p.x += Math.cos(p.psi) * v * dt; p.y += Math.sin(p.psi) * v * dt;
+    p.prop += dt * 45;
+    p.tick += dt;
+    if (p.tick > 0.03) { p.tick = 0; const k = scale() * 30; p.trail.push({ x: p.x - Math.cos(p.psi) * k, y: p.y - Math.sin(p.psi) * k }); if (p.trail.length > TRAIL) p.trail.shift(); }
+    if ((p.dir > 0 && p.x > W + 110) || (p.dir < 0 && p.x < -110)) p.wait = 0.5 + Math.random() * 2.5; // flew off the far end
+  }
+
+  function body() { // yellow biplane facing right, drawn around (0, 0)
+    const Y = "#f2a900", Y2 = "#d98c00", D = "#6b4300";
+    ctx.fillStyle = Y; ctx.beginPath(); ctx.moveTo(30, -5); ctx.quadraticCurveTo(35, 0, 30, 6); ctx.lineTo(-6, 4); ctx.lineTo(-30, 0.5); ctx.lineTo(-30, -2); ctx.lineTo(-6, -6); ctx.closePath(); ctx.fill(); // fuselage
+    ctx.fillStyle = Y2; ctx.beginPath(); ctx.moveTo(-30, -2); ctx.lineTo(-36, -14); ctx.lineTo(-24, -4); ctx.closePath(); ctx.fill(); // fin
+    ctx.fillRect(-33, -1.5, 12, 2.5); // tailplane
+    ctx.strokeStyle = D; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(-9, -16); ctx.lineTo(-9, 7); ctx.moveTo(11, -16); ctx.lineTo(11, 7); ctx.moveTo(-5, -16); ctx.lineTo(0, -5); ctx.moveTo(15, -16); ctx.lineTo(18, -4); ctx.stroke(); // struts
+    ctx.fillStyle = Y2; ctx.fillRect(-18, 5, 36, 3); // lower wing
+    ctx.fillStyle = Y; ctx.fillRect(-16, -18, 40, 3.2); // upper wing
+    ctx.fillStyle = D; ctx.beginPath(); ctx.ellipse(31, 0, 4, 6.5, 0, 0, TAU); ctx.fill(); // engine cowling
+    ctx.beginPath(); ctx.ellipse(8, -6, 4, 2.6, 0, 0, TAU); ctx.fill(); // cockpit
+    ctx.strokeStyle = D; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(12, 6); ctx.lineTo(15, 13); ctx.stroke(); ctx.beginPath(); ctx.arc(15, 13.5, 3.6, 0, TAU); ctx.fill(); // wheel
+  }
+
+  function drawPlane(p) {
+    if (p.wait > 0) return;
+    const sm = col.smoke[p.tone];
+    ctx.lineCap = "round"; ctx.lineJoin = "round";
+    for (let i = 1; i < p.trail.length; i++) { // smoke: thin and strong near the plane, wider and fainter as it ages
+      const k = i / p.trail.length;
+      ctx.strokeStyle = sm; ctx.globalAlpha = k * 0.65; ctx.lineWidth = 1.2 + (1 - k) * 3.6;
+      ctx.beginPath(); ctx.moveTo(p.trail[i - 1].x, p.trail[i - 1].y); ctx.lineTo(p.trail[i].x, p.trail[i].y); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.psi); ctx.scale(scale(), scale() * p.dir * (p.roll ? Math.cos(p.roll) : 1));
+    body();
+    ctx.translate(35, 0); ctx.scale(1, Math.cos(p.prop)); ctx.strokeStyle = "#8a5a00"; ctx.lineWidth = 2.4; ctx.beginPath(); ctx.moveTo(0, -13); ctx.lineTo(0, 13); ctx.stroke(); // propeller
+    ctx.restore();
+  }
+
+  let last = 0, frames = 0;
+  function draw() { ctx.clearRect(0, 0, W, H); clouds.forEach(drawCloud); planes.forEach(drawPlane); }
+  function frame(ms) {
+    const t = ms / 1000, dt = Math.min(0.05, t - last || 0.016); last = t;
+    if (++frames % 30 === 0) readCols(); // follows the theme toggle
+    planes.forEach((p) => step(p, dt, t));
+    clouds.forEach((c) => { c.x += c.v * dt; if (c.x > W + 40) { const n = mkCloud(0); n.x = -n.w - 40; Object.assign(c, n); } });
+    draw();
+    requestAnimationFrame(frame);
+  }
+  if (still) { planes.forEach((p) => (p.psi = p.dir > 0 ? 0 : Math.PI)); draw(); } else requestAnimationFrame(frame);
+})();
+
+// theme
+const root = document.documentElement;
+try { const t = localStorage.getItem("theme"); if (t) root.dataset.theme = t; } catch {}
+$("theme").onclick = () => {
+  const dark = (root.dataset.theme || (matchMedia("(prefers-color-scheme:dark)").matches ? "dark" : "light")) === "dark";
+  root.dataset.theme = dark ? "light" : "dark";
+  try { localStorage.setItem("theme", root.dataset.theme); } catch {}
+};
+
+// tabs
+const tabs = ["demo", "employer", "student", "admin", "audit"], names = { demo: "Demo", employer: "Verify", student: "Student", admin: "University", audit: "Audit log" };
+function go(t) {
+  tabs.forEach((x) => { $(x).classList.toggle("on", x === t); $("tab-" + x).setAttribute("aria-selected", x === t); });
+  if (t === "audit") aud();
+}
+tabs.forEach((t) => $("nav").append(el("button", { id: "tab-" + t, role: "tab", type: "button", textContent: names[t], onclick: () => go(t) })));
+go("demo");
+
+// ---- demo ----
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const badge = { AUTHENTIC: ["ok", "VALID"], REVOKED: ["bad", "REVOKED"], NOT_FOUND: ["bad", "NO MATCH"], info: ["info", "DONE"] };
+$("demobtn").onclick = async () => {
+  const btn = $("demobtn"), list = $("steps");
+  btn.disabled = true; list.replaceChildren(); say("demomsg", "Running on the chain…");
+  const j = await J("/demo", {}, adminH());
+  if (j.error) { btn.disabled = false; return say("demomsg", j.error, "err"); }
+  for (const [i, s] of j.steps.entries()) {
+    const [cls, label] = badge[s.status];
+    const li = el("li", { className: "step" }, el("div", { className: "head" }, el("b", { textContent: `${i + 1}. ${s.title}` }), el("span", { className: "pill " + cls, textContent: label })), el("p", { textContent: s.text }));
+    if (s.hash) li.append(el("div", { className: "mono", textContent: "SHA-256 " + s.hash }));
+    if (s.tx) li.append(el("div", { className: "mono", textContent: "tx " + s.tx }));
+    list.append(li); li.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    await sleep(1400);
+  }
+  say("demomsg", "Done. The Audit tab now lists the issue and revoke events from this run.", "good");
+  btn.disabled = false; btn.textContent = "Run again";
+};
+
+// ---- employer ----
+const drop = $("drop");
+const pick = (f) => { if (f) { $("fname").textContent = f.name; verifyFile(f); } };
+drop.onclick = () => $("file").click();
+drop.onkeydown = (e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), $("file").click());
+$("file").onchange = (e) => pick(e.target.files[0]);
+drop.ondragover = (e) => { e.preventDefault(); drop.classList.add("over"); };
+drop.ondragleave = () => drop.classList.remove("over");
+drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove("over"); pick(e.dataTransfer.files[0]); };
+
+function verdict(r) {
+  const v = $("verdict"); v.replaceChildren();
+  if (r.error) return v.append(el("div", { className: "verdict v-warn" }, el("div", {}, el("h3", { textContent: "Could not check" }), el("p", { textContent: r.error }))));
+  const map = {
+    AUTHENTIC: ["v-ok", "VALID", "Authentic document", "This document matches the record the university registered."],
+    REVOKED: ["v-bad", "REVOKED", "Revoked by the university", "This document was genuine but is no longer valid."],
+    NOT_FOUND: ["v-bad", "NO MATCH", "Not verified", "The document was altered, was never registered, or is not from this university."],
+  }[r.status];
+  const body = el("div", {}, el("h3", { textContent: map[2] }), el("p", { textContent: map[3] }));
+  if (r.issuer) body.append(el("dl", {}, el("dt", { textContent: "Issuer" }), el("dd", { className: "mono", textContent: r.issuer }), el("dt", { textContent: "Issued" }), el("dd", { textContent: fmt(r.issuedAt) })));
+  v.append(el("div", { className: "verdict " + map[0] }, el("span", { className: "stamp", textContent: map[1] }), body));
+}
+async function verifyFile(f) { const fd = new FormData(); fd.append("file", f); verdict(await fetch("/verify", { method: "POST", body: fd }).then((r) => r.json())); }
+$("vbtn").onclick = async () => {
+  const id = $("vid").value.trim();
+  if (!id) return verdict({ error: "Enter a certificate ID or upload a PDF." });
+  verdict(await J("/verify/" + encodeURIComponent(id)));
+};
+
+// ---- student ----
+$("mine").onclick = async () => {
+  const studentId = $("stid").value, pin = $("stpin").value, list = $("list");
+  const j = await J("/student/certs", { studentId, pin });
+  if (j.error) { say("stmsg", "Student ID or PIN is incorrect.", "err"); return; }
+  say("stmsg", "");
+  list.replaceChildren(...(j.length ? j.map((c) => el("div", { className: "row" },
+    el("div", {}, el("span", { className: "t", textContent: c.title }), el("small", { className: "mono", textContent: short(c.certId) })),
+    el("div", {}, c.revoked ? el("span", { className: "pill bad", textContent: "REVOKED" }) : el("span", { className: "pill ok", textContent: "VALID" }), " ",
+      el("a", { className: "dl", href: `/student/download/${c.certId}?studentId=${encodeURIComponent(studentId)}&pin=${encodeURIComponent(pin)}`, textContent: "Download PDF" })),
+  )) : [el("span", { textContent: "No certificates issued yet." })]));
+};
+
+// ---- admin ----
+const post = (url, body, h = adminH()) => J(url, body, h);
+$("reg").onclick = async () => {
+  const j = await post("/admin/students", { studentId: $("sid").value, name: $("sname").value, pin: $("spin").value });
+  say("regmsg", j.error || "Student registered.", j.error ? "err" : "good");
+};
+$("iss").onclick = async () => {
+  say("issmsg", "Writing to the chain…");
+  const fd = new FormData(); fd.append("studentId", $("isid").value); fd.append("title", $("ititle").value);
+  if ($("ifile").files[0]) fd.append("file", $("ifile").files[0]);
+  const j = await fetch("/admin/issue", { method: "POST", headers: adminH(), body: fd }).then((r) => r.json()); // browser sets the multipart header
+  const m = $("issmsg");
+  if (j.error) return say("issmsg", j.error, "err");
+  say("issmsg", "Issued. Certificate ID:", "good"); m.append(el("div", { className: "mono", textContent: j.certId }), copyBtn(j.certId));
+};
+$("rev").onclick = async () => {
+  const j = await post("/admin/revoke", { certId: $("rid").value.trim() });
+  say("revmsg", j.error || "Certificate revoked.", j.error ? "err" : "good");
+};
+
+// ---- audit ----
+async function aud() {
+  const j = await J("/admin/audit", null, adminH()), b = $("aud"); b.replaceChildren();
+  if (j.error) return say("audmsg", "Enter the admin key on the University tab to view the log.", "err");
+  say("audmsg", j.length ? "" : "No events yet.");
+  j.slice().reverse().forEach((e) => b.append(el("tr", {},
+    el("td", {}, el("span", { className: "pill " + (e.event === "Issued" ? "ok" : "bad"), textContent: e.event.toUpperCase() })),
+    el("td", { className: "mono", textContent: short(e.certId) }), el("td", { className: "mono", textContent: e.block }), el("td", { textContent: fmt(e.time) }))));
+}
+$("audbtn").onclick = aud;
+</script>
+</body>
+</html>

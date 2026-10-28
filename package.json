@@ -1,0 +1,26 @@
+{
+  "name": "blockchain-document-verification",
+  "version": "1.0.0",
+  "description": "University document verification on a blockchain: PDF hashes in a Solidity smart contract, issue / verify / revoke / audit.",
+  "main": "index.js",
+  "scripts": {
+    "test": "hardhat test",
+    "node": "hardhat node",
+    "deploy": "hardhat run scripts/deploy.js --network localhost",
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "type": "commonjs",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "hardhat": "^2.29.1"
+  },
+  "dependencies": {
+    "ethers": "^6.17.0",
+    "express": "^5.3.0",
+    "multer": "^2.5.0",
+    "pdfkit": "^0.20.2"
+  }
+}
